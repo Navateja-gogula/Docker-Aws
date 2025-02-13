@@ -33,7 +33,6 @@ jobs:
 
       # Step 4: Run tests
       - name: Run tests
-        if: github.ref == 'main'
         run: npm test
 
       # Step 5: Build the app
