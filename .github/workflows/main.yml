@@ -74,6 +74,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1  # Update to match your AWS region
 
+      - name: Ensure ECS Cluster Exists
+        run: |
+          echo "🔍 Checking if ECS cluster exists..."
+          aws ecs describe-clusters --clusters my-ecs-cluster --query "clusters[*].clusterName" --output text || \
+          { echo "🚀 Creating ECS cluster..."; aws ecs create-cluster --cluster-name my-ecs-cluster; }
+
       - name: Debug - Ensure ECS Task Definition File Exists
         run: |
           echo "📂 Checking if ecs-task-definition.json exists..."
