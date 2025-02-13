@@ -77,8 +77,29 @@ jobs:
       - name: Ensure ECS Cluster Exists
         run: |
           echo "🔍 Checking if ECS cluster exists..."
-          aws ecs describe-clusters --clusters my-ecs-cluster --query "clusters[*].clusterName" --output text || \
-          { echo "🚀 Creating ECS cluster..."; aws ecs create-cluster --cluster-name my-ecs-cluster; }
+          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters my-ecs-cluster --query "clusters[*].status" --output text 2>/dev/null || echo "MISSING")
+          if [ "$CLUSTER_STATUS" != "ACTIVE" ]; then
+            echo "🚀 Creating ECS cluster..."
+            aws ecs create-cluster --cluster-name my-ecs-cluster
+          else
+            echo "✅ ECS cluster already exists."
+          fi
+
+      - name: Ensure ECS Service Exists
+        run: |
+          echo "🔍 Checking if ECS service exists..."
+          SERVICE_STATUS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[*].status" --output text 2>/dev/null || echo "MISSING")
+          if [ "$SERVICE_STATUS" = "MISSING" ]; then
+            echo "🚀 Creating ECS service..."
+            aws ecs create-service \
+              --cluster my-ecs-cluster \
+              --service-name my-ecs-service \
+              --task-definition my-task-def \
+              --desired-count 1 \
+              --launch-type FARGATE
+          else
+            echo "✅ ECS service already exists."
+          fi
 
       - name: Debug - Ensure ECS Task Definition File Exists
         run: |
@@ -93,10 +114,13 @@ jobs:
           container-name: todo-app
           image: ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
 
-      - name: Deploy to ECS Services
+      - name: Deploy to ECS Service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.update-task-def.outputs.task-definition }}
           service: my-ecs-service
           cluster: my-ecs-cluster
           wait-for-service-stability: true
+
+      - name: AWS SDK Deprecation Warning
+        run: echo "⚠️ AWS SDK for JavaScript (v2) will enter maintenance mode on Sep 8, 2024, and reach end-of-support on Sep 8, 2025. Please migrate to AWS SDK v3! More info: https://a.co/cUPnyil"
