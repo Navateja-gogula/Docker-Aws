@@ -96,7 +96,10 @@ jobs:
               --service-name my-ecs-service \
               --task-definition my-task-def \
               --desired-count 1 \
-              --launch-type FARGATE
+              --launch-type FARGATE \
+              --platform-version LATEST \
+              --network-configuration "awsvpcConfiguration={subnets=[subnet-abc123],securityGroups=[sg-xyz789],assignPublicIp=ENABLED}" \
+              --load-balancer "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:***:targetgroup/my-target-group/abc123,containerName=todo-app,containerPort=80"
           else
             echo "✅ ECS service already exists."
           fi
@@ -109,18 +112,24 @@ jobs:
             exit 1
           fi
 
-      - name: Update ECS Task Definition
-        id: update-task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ github.workspace }}/ecs-task-definition.json
-          container-name: todo-app
-          image: ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
+      - name: Register New ECS Task Definition
+        id: register-task-def
+        run: |
+          echo "🚀 Registering new ECS task definition..."
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://${{ github.workspace }}/ecs-task-definition.json \
+            --query "taskDefinition.taskDefinitionArn" --output text)
+          echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
 
-      - name: Deploy to ECS Service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.update-task-def.outputs.task-definition }}
-          service: my-ecs-service
-          cluster: my-ecs-cluster
-          wait-for-service-stability: true
+      - name: Deploy New Task Definition to ECS
+        run: |
+          echo "🚀 Updating ECS Service to use new task definition..."
+          aws ecs update-service \
+            --cluster my-ecs-cluster \
+            --service my-ecs-service \
+            --task-definition $TASK_DEF_ARN
+
+      - name: Wait for Service to Stabilize
+        run: |
+          echo "⏳ Waiting for ECS service to stabilize..."
+          aws ecs wait services-stable --cluster my-ecs-cluster --services my-ecs-service
