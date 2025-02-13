@@ -87,7 +87,7 @@ jobs:
           container-name: todo-app
           image: ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
 
-      - name: Deploy to ECS Service
+      - name: Deploy to ECS Services
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.update-task-def.outputs.task-definition }}
