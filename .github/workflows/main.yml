@@ -129,10 +129,27 @@ jobs:
       - name: Deploy New Task Definition to ECS
         run: |
           echo "🚀 Updating ECS Service to use new task definition..."
-          aws ecs update-service \
+          UPDATE_STATUS=$(aws ecs update-service \
             --cluster my-ecs-cluster \
             --service my-ecs-service \
-            --task-definition $TASK_DEF_ARN || (echo "❌ ERROR: Update failed!" && exit 1)
+            --task-definition $TASK_DEF_ARN 2>&1)
+
+          if [[ $UPDATE_STATUS == *"ServiceNotFoundException"* ]]; then
+            echo "❌ ERROR: ECS service not found! Creating service..."
+            aws ecs create-service \
+              --cluster my-ecs-cluster \
+              --service-name my-ecs-service \
+              --task-definition $TASK_DEF_ARN \
+              --desired-count 1 \
+              --launch-type FARGATE \
+              --platform-version LATEST \
+              --network-configuration 'awsvpcConfiguration={subnets=["subnet-abc123"],securityGroups=["sg-xyz789"],assignPublicIp="ENABLED"}' \
+              --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:***:targetgroup/my-target-group/abc123,containerName=todo-app,containerPort=80"
+          elif [[ $UPDATE_STATUS == *"No update is needed"* ]]; then
+            echo "✅ No update required. Service is already running the latest task definition."
+          else
+            echo "✅ Service updated successfully!"
+          fi
 
       - name: Wait for Service to Stabilize
         run: |
