@@ -69,12 +69,13 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1  # Update if needed
+          aws-region: us-east-1  # Update to match your AWS region
 
       - name: Ensure ECS Cluster Exists
         run: |
           echo "🔍 Checking if ECS cluster exists..."
-          if ! aws ecs describe-clusters --clusters my-ecs-cluster --query "clusters[*].status" --output json | jq -e '.[0] == "ACTIVE"' >/dev/null; then
+          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters my-ecs-cluster --query "clusters[*].status" --output text 2>/dev/null || echo "MISSING")
+          if [ "$CLUSTER_STATUS" != "ACTIVE" ]; then
             echo "🚀 Creating ECS cluster..."
             aws ecs create-cluster --cluster-name my-ecs-cluster
           else
@@ -84,9 +85,9 @@ jobs:
       - name: Ensure ECS Service Exists
         run: |
           echo "🔍 Checking if ECS service exists..."
-          SERVICE_COUNT=$(aws ecs list-services --cluster my-ecs-cluster --query "serviceArns | length(@)")
+          SERVICE_STATUS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[*].status" --output text 2>/dev/null || echo "MISSING")
           
-          if [ "$SERVICE_COUNT" -eq 0 ]; then
+          if [ "$SERVICE_STATUS" = "MISSING" ]; then
             echo "🚀 Creating ECS service..."
             aws ecs create-service \
               --cluster my-ecs-cluster \
@@ -116,7 +117,7 @@ jobs:
           TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://${{ github.workspace }}/ecs-task-definition.json \
             --query "taskDefinition.taskDefinitionArn" --output text)
-
+          
           if [ -z "$TASK_DEF_ARN" ]; then
             echo "❌ ERROR: Failed to register new task definition."
             exit 1
