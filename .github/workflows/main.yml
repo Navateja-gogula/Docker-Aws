@@ -89,6 +89,7 @@ jobs:
         run: |
           echo "🔍 Checking if ECS service exists..."
           SERVICE_STATUS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[*].status" --output text 2>/dev/null || echo "MISSING")
+          
           if [ "$SERVICE_STATUS" = "MISSING" ]; then
             echo "🚀 Creating ECS service..."
             aws ecs create-service \
@@ -98,8 +99,8 @@ jobs:
               --desired-count 1 \
               --launch-type FARGATE \
               --platform-version LATEST \
-              --network-configuration "awsvpcConfiguration={subnets=[subnet-abc123],securityGroups=[sg-xyz789],assignPublicIp=ENABLED}" \
-              --load-balancer "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:***:targetgroup/my-target-group/abc123,containerName=todo-app,containerPort=80"
+              --network-configuration 'awsvpcConfiguration={subnets=["subnet-abc123"],securityGroups=["sg-xyz789"],assignPublicIp="ENABLED"}' \
+              --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:***:targetgroup/my-target-group/abc123,containerName=todo-app,containerPort=80"
           else
             echo "✅ ECS service already exists."
           fi
@@ -119,6 +120,13 @@ jobs:
           TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://${{ github.workspace }}/ecs-task-definition.json \
             --query "taskDefinition.taskDefinitionArn" --output text)
+          
+          if [ -z "$TASK_DEF_ARN" ]; then
+            echo "❌ ERROR: Failed to register new task definition."
+            exit 1
+          fi
+
+          echo "✅ Task definition registered: $TASK_DEF_ARN"
           echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
 
       - name: Deploy New Task Definition to ECS
