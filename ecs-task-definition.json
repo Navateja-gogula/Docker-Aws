@@ -1,0 +1,32 @@
+{
+    "family": "todo-app-task",
+    "executionRoleArn": "arn:aws:iam::9750-5022-4369:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+      {
+        "name": "todo-app",
+        "image": "gnavateja/todo-app:latest",
+        "memory": 512,
+        "cpu": 256,
+        "essential": true,
+        "portMappings": [
+          {
+            "containerPort": 3000,
+            "hostPort": 3000
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/todo-app",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        }
+      }
+    ],
+    "requiresCompatibilities": ["FARGATE"],
+    "networkMode": "awsvpc",
+    "memory": "1024",
+    "cpu": "512"
+  }
+  
