@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensure all files are fetched
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -104,7 +104,10 @@ jobs:
       - name: Debug - Ensure ECS Task Definition File Exists
         run: |
           echo "📂 Checking if ecs-task-definition.json exists..."
-          ls -alh ${{ github.workspace }}/ecs-task-definition.json || { echo "❌ ERROR: Task definition file not found!"; exit 1; }
+          if [ ! -f "${{ github.workspace }}/ecs-task-definition.json" ]; then
+            echo "❌ ERROR: Task definition file not found!"
+            exit 1
+          fi
 
       - name: Update ECS Task Definition
         id: update-task-def
@@ -121,6 +124,3 @@ jobs:
           service: my-ecs-service
           cluster: my-ecs-cluster
           wait-for-service-stability: true
-
-      - name: AWS SDK Deprecation Warning
-        run: echo "⚠️ AWS SDK for JavaScript (v2) will enter maintenance mode on Sep 8, 2024, and reach end-of-support on Sep 8, 2025. Please migrate to AWS SDK v3! More info: https://a.co/cUPnyil"
