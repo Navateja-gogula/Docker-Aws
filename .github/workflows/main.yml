@@ -40,7 +40,7 @@ jobs:
         run: npm run build --verbose
 
       # Step 6: List build directory for debugging
-      - name: List build directory
+      - name: Debug - List build directory
         run: ls -alh build || echo "Build directory not found"
 
       # Step 7: Log in to Docker Hub
@@ -59,6 +59,10 @@ jobs:
       - name: Push Docker Image
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
+
+      # Step 10: Log out from Docker Hub for security
+      - name: Log out from Docker Hub
+        run: docker logout
 
   deploy:
     name: Deploy to AWS ECS
@@ -79,16 +83,20 @@ jobs:
         run: |
           docker pull ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
 
-      # Step 3: Update ECS Task Definition with new image
+      # Step 3: Debug - Ensure task definition file exists
+      - name: Debug - List files in root directory
+        run: ls -alh || echo "Root directory not found"
+
+      # Step 4: Update ECS Task Definition with new image
       - name: Update ECS Task Definition
         id: update-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ecs-task-definition.json  # Ensure this file is in your repo
+          task-definition: ./ecs-task-definition.json  # Explicitly set the path
           container-name: todo-app
           image: ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
 
-      # Step 4: Deploy updated Task Definition to ECS
+      # Step 5: Deploy updated Task Definition to ECS
       - name: Deploy to ECS Service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
@@ -96,4 +104,3 @@ jobs:
           service: my-ecs-service
           cluster: my-ecs-cluster
           wait-for-service-stability: true
-
