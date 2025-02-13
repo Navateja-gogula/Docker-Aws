@@ -73,40 +73,19 @@ jobs:
 
       - name: Ensure ECS Cluster Exists
         run: |
-          echo "🔍 Checking if ECS cluster exists..."
+          echo "🔍 Checking ECS cluster..."
           CLUSTER_STATUS=$(aws ecs describe-clusters --clusters my-ecs-cluster --query "clusters[*].status" --output text 2>/dev/null || echo "MISSING")
           if [ "$CLUSTER_STATUS" != "ACTIVE" ]; then
             echo "🚀 Creating ECS cluster..."
             aws ecs create-cluster --cluster-name my-ecs-cluster
           else
-            echo "✅ ECS cluster already exists."
+            echo "✅ ECS cluster exists."
           fi
 
-      - name: Ensure ECS Service Exists
+      - name: Ensure ECS Task Definition File Exists
         run: |
-          echo "🔍 Checking if ECS service exists..."
-          SERVICE_STATUS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[*].status" --output text 2>/dev/null || echo "MISSING")
-          
-          if [ "$SERVICE_STATUS" = "MISSING" ]; then
-            echo "🚀 Creating ECS service..."
-            aws ecs create-service \
-              --cluster my-ecs-cluster \
-              --service-name my-ecs-service \
-              --task-definition my-task-def \
-              --desired-count 1 \
-              --launch-type FARGATE \
-              --platform-version LATEST \
-              --network-configuration 'awsvpcConfiguration={subnets=["subnet-abc123"],securityGroups=["sg-xyz789"],assignPublicIp="ENABLED"}' \
-              --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:***:targetgroup/my-target-group/abc123,containerName=todo-app,containerPort=80"
-          else
-            echo "✅ ECS service already exists."
-          fi
-
-      - name: Debug - Ensure ECS Task Definition File Exists
-        run: |
-          echo "📂 Checking if ecs-task-definition.json exists..."
           if [ ! -f "${{ github.workspace }}/ecs-task-definition.json" ]; then
-            echo "❌ ERROR: Task definition file not found!"
+            echo "❌ ERROR: ecs-task-definition.json not found!"
             exit 1
           fi
 
@@ -117,25 +96,21 @@ jobs:
           TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://${{ github.workspace }}/ecs-task-definition.json \
             --query "taskDefinition.taskDefinitionArn" --output text)
-          
+
           if [ -z "$TASK_DEF_ARN" ]; then
-            echo "❌ ERROR: Failed to register new task definition."
+            echo "❌ ERROR: Failed to register task definition."
             exit 1
           fi
 
-          echo "✅ Task definition registered: $TASK_DEF_ARN"
+          echo "✅ Registered Task Definition: $TASK_DEF_ARN"
           echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
 
-      - name: Deploy New Task Definition to ECS
+      - name: Ensure ECS Service Exists
         run: |
-          echo "🚀 Updating ECS Service to use new task definition..."
-          UPDATE_STATUS=$(aws ecs update-service \
-            --cluster my-ecs-cluster \
-            --service my-ecs-service \
-            --task-definition $TASK_DEF_ARN 2>&1)
+          SERVICE_STATUS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[*].status" --output text 2>/dev/null || echo "MISSING")
 
-          if [[ $UPDATE_STATUS == *"ServiceNotFoundException"* ]]; then
-            echo "❌ ERROR: ECS service not found! Creating service..."
+          if [ "$SERVICE_STATUS" = "MISSING" ]; then
+            echo "🚀 Creating ECS service..."
             aws ecs create-service \
               --cluster my-ecs-cluster \
               --service-name my-ecs-service \
@@ -145,8 +120,18 @@ jobs:
               --platform-version LATEST \
               --network-configuration 'awsvpcConfiguration={subnets=["subnet-abc123"],securityGroups=["sg-xyz789"],assignPublicIp="ENABLED"}' \
               --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:***:targetgroup/my-target-group/abc123,containerName=todo-app,containerPort=80"
-          elif [[ $UPDATE_STATUS == *"No update is needed"* ]]; then
-            echo "✅ No update required. Service is already running the latest task definition."
+          else
+            echo "✅ ECS service already exists."
+          fi
+
+      - name: Deploy New Task Definition to ECS
+        run: |
+          echo "🚀 Updating ECS Service to use new task definition..."
+          aws ecs update-service --cluster my-ecs-cluster --service my-ecs-service --task-definition $TASK_DEF_ARN
+
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: ECS update-service failed!"
+            exit 1
           else
             echo "✅ Service updated successfully!"
           fi
