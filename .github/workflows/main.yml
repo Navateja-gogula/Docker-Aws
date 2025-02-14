@@ -71,4 +71,4 @@ jobs:
             docker stop todo-app || true
             docker rm todo-app || true
             docker pull ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
-            docker run -d -p 80:3000 --name todo-app ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
+            docker run -d -p 80:2000 --name todo-app ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
