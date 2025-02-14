@@ -131,16 +131,26 @@ jobs:
           done
           echo "✅ Service updated successfully!"
 
+      - name: Run ECS Task Manually
+        run: |
+          echo "🚀 Running ECS task manually..."
+          aws ecs run-task \
+            --cluster my-ecs-cluster \
+            --task-definition todo-app-task \
+            --launch-type FARGATE \
+            --network-configuration 'awsvpcConfiguration={subnets=["subnet-0960dd26b40546290"],securityGroups=["sg-01f5c7eb4d2e3dd8f"],assignPublicIp="ENABLED"}'
+          echo "✅ ECS task started successfully!"
+
       - name: Wait for Service to Stabilize (Custom Check)
         run: |
           echo "⏳ Waiting for ECS service to stabilize..."
-          for i in {1..30}; do
+          for i in {1..20}; do
             SERVICE_STATUS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[0].deployments[0].runningCount" --output text)
             if [ "$SERVICE_STATUS" -gt 0 ]; then
               echo "✅ Service is running!"
               exit 0
             fi
-            echo "🔄 Still stabilizing... Attempt $i/30"
+            echo "🔄 Still stabilizing... Attempt $i/20"
             sleep 20
           done
           echo "❌ ERROR: ECS service did not stabilize in time!"
