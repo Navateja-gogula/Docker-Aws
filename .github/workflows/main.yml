@@ -98,8 +98,8 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.PUBLIC_IP }}
-          username: ${{ secrets.EC2_USER }} # Use the secret for EC2 username
-          key: ${{ secrets.EC2_SSH_KEY }}  # Use the secret for EC2 private SSH key
+          username: ${{ secrets.EC2_USER }}  # EC2 username
+          key: ${{ secrets.EC2_SSH_KEY }}  # EC2 private SSH key
           script: |
             set -x
             # Ensure the private SSH key is set up for SSH authentication
@@ -107,24 +107,27 @@ jobs:
             echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
             chmod 600 ~/.ssh/id_rsa
 
-            # Check if Docker is installed, if not, install it
-            if ! command -v docker &> /dev/null
-            then
-                echo "Docker not found, installing..."
-                sudo apt update
-                sudo apt install -y docker.io
-                sudo systemctl start docker
-                sudo systemctl enable docker
-            else
-                echo "Docker is already installed."
-            fi
+            # Connect to the EC2 instance and disable StrictHostKeyChecking
+            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ env.PUBLIC_IP }} << 'EOF'
+              # Check if Docker is installed, if not, install it
+              if ! command -v docker &> /dev/null
+              then
+                  echo "Docker not found, installing..."
+                  sudo apt update
+                  sudo apt install -y docker.io
+                  sudo systemctl start docker
+                  sudo systemctl enable docker
+              else
+                  echo "Docker is already installed."
+              fi
 
-            # Stop and remove any existing container named 'todo-app'
-            docker stop todo-app || true
-            docker rm todo-app || true
+              # Stop and remove any existing container named 'todo-app'
+              docker stop todo-app || true
+              docker rm todo-app || true
 
-            # Pull the latest Docker image from Docker Hub
-            docker pull ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
+              # Pull the latest Docker image from Docker Hub
+              docker pull ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
 
-            # Run the Docker container on port 80
-            docker run -d -p 80:80 --name todo-app ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
+              # Run the Docker container on port 80
+              docker run -d -p 80:80 --name todo-app ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
+            EOF
