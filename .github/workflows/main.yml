@@ -98,7 +98,7 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.PUBLIC_IP }}
-          username: ${{ secrets.EC2_USER }}  # EC2 username
+          username: ${{ secrets.EC2_USER }}  # EC2 username (e.g., ubuntu)
           key: ${{ secrets.EC2_SSH_KEY }}  # EC2 private SSH key
           script: |
             set -x
