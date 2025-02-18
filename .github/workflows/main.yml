@@ -96,8 +96,16 @@ jobs:
       # Step 11: Test SSH Connection
       - name: Test SSH Connection
         run: |
+          # Ensure the ~/.ssh directory exists
+          mkdir -p ~/.ssh
+
+          # Write the private key into the ~/.ssh/id_rsa file
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+
+          # Set the appropriate permissions for the private key
           chmod 600 ~/.ssh/id_rsa
+
+          # Test the SSH connection
           ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ env.PUBLIC_IP }} "echo 'SSH Connection Success'"
 
       # Step 12: Deploy and Run Docker Container
