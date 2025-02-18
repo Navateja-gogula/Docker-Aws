@@ -96,6 +96,8 @@ jobs:
       # Step 11: Test SSH Connection
       - name: Test SSH Connection
         run: |
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ env.PUBLIC_IP }} "echo 'SSH Connection Success'"
 
       # Step 12: Deploy and Run Docker Container
