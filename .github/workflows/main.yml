@@ -56,7 +56,7 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
 
-      # Step 9: Connect to AWS and set up EC2
+      # Step 9: Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -64,23 +64,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Step 10: Check for existing EC2 instance, create if needed
+      # Step 10: Check and create EC2 instance if not exists
       - name: Check and create EC2 instance if not exists
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=todo-app" "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].InstanceId" --output text)
+
           if [ -z "$INSTANCE_ID" ]; then
             echo "EC2 instance not found, creating..."
-            INSTANCE_ID=$(aws ec2 run-instances --image-id ami-04b4f1a9cf54c11d0 --count 1 --instance-type t2.micro --key-name my-key --security-groups my-security-group --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=todo-app}]' --query 'Instances[0].InstanceId' --output text)
+
+            SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=default" --query "SecurityGroups[0].GroupId" --output text)
+
+            INSTANCE_ID=$(aws ec2 run-instances \
+              --image-id ami-04b4f1a9cf54c11d0 \
+              --count 1 \
+              --instance-type t2.micro \
+              --key-name my-key \
+              --security-group-ids $SECURITY_GROUP_ID \
+              --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=todo-app}]' \
+              --query 'Instances[0].InstanceId' --output text)
+
             echo "Waiting for instance to be running..."
             aws ec2 wait instance-running --instance-ids $INSTANCE_ID
           else
             echo "EC2 instance is already running."
           fi
+
           PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[].Instances[].PublicIpAddress" --output text)
           echo "EC2 Instance Public IP: $PUBLIC_IP"
           echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
 
-      # Step 11: Deploy to AWS EC2 and Install Docker if Missing
+      # Step 11: Deploy and Run Docker Container on EC2
       - name: Deploy and Run Docker Container
         uses: appleboy/ssh-action@master
         with:
