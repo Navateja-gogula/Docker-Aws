@@ -93,7 +93,12 @@ jobs:
           echo "EC2 Instance Public IP: $PUBLIC_IP"
           echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
 
-      # Step 11: Deploy and Run Docker Container
+      # Step 11: Test SSH Connection
+      - name: Test SSH Connection
+        run: |
+          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ env.PUBLIC_IP }} "echo 'SSH Connection Success'"
+
+      # Step 12: Deploy and Run Docker Container
       - name: Deploy and Run Docker Container
         uses: appleboy/ssh-action@master
         with:
