@@ -70,7 +70,7 @@ jobs:
           INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=todo-app" "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].InstanceId" --output text)
           if [ -z "$INSTANCE_ID" ]; then
             echo "EC2 instance not found, creating..."
-            INSTANCE_ID=$(aws ec2 run-instances --image-id ami-12345678 --count 1 --instance-type t2.micro --key-name my-key --security-groups my-security-group --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=todo-app}]' --query 'Instances[0].InstanceId' --output text)
+            INSTANCE_ID=$(aws ec2 run-instances --image-id ami-00bb6a80f01f03502 --count 1 --instance-type t2.micro --key-name my-key --security-groups my-security-group --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=todo-app}]' --query 'Instances[0].InstanceId' --output text)
             echo "Waiting for instance to be running..."
             aws ec2 wait instance-running --instance-ids $INSTANCE_ID
           else
